@@ -1,0 +1,10 @@
+.venv
+plan/
+.env
+node_modules/
+dist/
+__pycache__/
+*.faiss
+*.pkl
+*.npy
+ChLaw.json
