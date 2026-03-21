@@ -39,7 +39,13 @@ def main():
         print("\n跳過 Phase 2 資料處理...")
         
     # 2. 執行索引建立 (Phase 3)
-    index_args = []
+    chunks_path = os.path.abspath(os.path.join(base_dir, "..", "data", "chunks.json"))
+    output_dir = os.path.abspath(os.path.join(base_dir, "..", "data"))
+    
+    index_args = [
+        "--chunks-file", chunks_path,
+        "--output-dir", output_dir
+    ]
     if args.test_limit:
         index_args.extend(["--test-limit", str(args.test_limit)])
         
