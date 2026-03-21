@@ -8,6 +8,7 @@ from retrieval.query_classifier import QueryClassifier
 from retrieval.vector_retriever import VectorRetriever
 from retrieval.bm25_retriever import BM25Retriever
 from retrieval.hybrid_retriever import HybridRetriever
+from indexing.embedder import Embedder
 from retrieval.reranker import Reranker
 from retrieval.deduplicator import Deduplicator
 
@@ -31,7 +32,10 @@ def test_query():
         index_dir=os.path.join(base_dir, "data/bm25_index")
     )
     
-    hybrid_retriever = HybridRetriever(vector_retriever, bm25_retriever)
+    print("載入 Embedder...")
+    embedder = Embedder()
+    
+    hybrid_retriever = HybridRetriever(vector_retriever, bm25_retriever, embedder=embedder)
     reranker = Reranker()
     deduplicator = Deduplicator(max_per_law=3)
     

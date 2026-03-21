@@ -24,6 +24,17 @@ class Embedder:
         print(f"[{self.__class__.__name__}] Loading model {model_name} on {self.device}...")
         self.model = SentenceTransformer(model_name, device=self.device)
 
+    def embed_query(self, query: str) -> np.ndarray:
+        """
+        將單一查詢文本轉換為向量
+        """
+        embedding = self.model.encode(
+            [query],
+            show_progress_bar=False,
+            normalize_embeddings=True
+        )
+        return embedding[0]
+
     def format_text(self, chunk: Dict[str, Any]) -> str:
         """
         格式化文本以包含 metadata (法律名稱、條號、章節、內容)
