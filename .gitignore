@@ -1,5 +1,4 @@
 .venv
-plan/
 .env
 node_modules/
 dist/
