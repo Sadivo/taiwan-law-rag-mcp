@@ -1,5 +1,4 @@
 .venv
-plan/
 .env
 node_modules/
 dist/
@@ -7,4 +6,14 @@ __pycache__/
 *.faiss
 *.pkl
 *.npy
-ChLaw.json
+
+# 索引資料（build_index.py 產生，不 commit）
+data/*
+!data/ChLaw.json
+
+# pytest / hypothesis 快取
+.pytest_cache/
+.hypothesis/
+
+# Kiro IDE
+.kiro

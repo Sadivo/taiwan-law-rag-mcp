@@ -1,7 +1,15 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Union
 from .vector_retriever import VectorRetriever
 from .bm25_retriever import BM25Retriever
 import numpy as np
+
+# EmbeddingProvider is imported lazily to avoid circular imports;
+# both EmbeddingProvider and the legacy Embedder expose embed_query(text: str) -> np.ndarray
+try:
+    from providers.base import EmbeddingProvider as _EmbeddingProvider
+except ImportError:
+    _EmbeddingProvider = None  # type: ignore
+
 
 class HybridRetriever:
     """
@@ -9,7 +17,19 @@ class HybridRetriever:
     1. 平行或順序執行 Vector 與 BM25
     2. 使用 RRF 進行排名融合
     """
-    def __init__(self, vector_retriever: VectorRetriever, bm25_retriever: BM25Retriever, embedder=None):
+    def __init__(
+        self,
+        vector_retriever: VectorRetriever,
+        bm25_retriever: BM25Retriever,
+        embedder: "Optional[Union[_EmbeddingProvider, Any]]" = None,
+    ):
+        """
+        Parameters
+        ----------
+        embedder : EmbeddingProvider | Embedder | None
+            任何實作 ``embed_query(text: str) -> np.ndarray`` 的物件均可傳入。
+            接受新的 ``EmbeddingProvider`` 抽象介面實作，也向下相容舊有的 ``Embedder`` 類別。
+        """
         self.vector_retriever = vector_retriever
         self.bm25_retriever = bm25_retriever
         self.embedder = embedder

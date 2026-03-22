@@ -31,6 +31,8 @@ class VectorRetriever:
         full_index_path = os.path.abspath(self.index_path)
         if os.path.exists(full_index_path):
             self.index = faiss.read_index(full_index_path)
+            self.index_dim = self.index.d
+            print(f"[{self.__class__.__name__}] Loaded FAISS index with dimension: {self.index_dim}")
         else:
             print(f"Index not found at {full_index_path}")
             
@@ -49,6 +51,14 @@ class VectorRetriever:
             query_vector = np.expand_dims(query_vector, axis=0)
             
         query_vector = query_vector.astype('float32')
+
+        # 維度不符時提早報錯，避免 FAISS 崩潰
+        if query_vector.shape[1] != self.index_dim:
+            raise ValueError(
+                f"Query vector dimension ({query_vector.shape[1]}) does not match "
+                f"FAISS index dimension ({self.index_dim}). "
+                f"The embedding model may have changed. Please rebuild the index."
+            )
         
         distances, indices = self.index.search(query_vector, top_k)
         

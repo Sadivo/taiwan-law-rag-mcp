@@ -1,7 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
+from dotenv import load_dotenv
+load_dotenv()  # 載入 .env 檔（若存在）
+
 from api import routes
+from api.models import HealthResponse
 
 # 設定日誌
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -24,9 +28,13 @@ app.add_middleware(
 # 掛載路由
 app.include_router(routes.router)
 
-@app.get("/health")
+@app.get("/health", response_model=HealthResponse)
 async def health_check():
-    return {"status": "ok", "service": "Taiwan Law RAG API"}
+    return HealthResponse(
+        status="ok",
+        embedding_provider=routes._embedding_provider_name,
+        reranking_provider=routes._reranking_provider_name,
+    )
 
 if __name__ == "__main__":
     import uvicorn
