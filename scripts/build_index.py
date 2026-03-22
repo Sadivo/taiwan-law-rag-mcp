@@ -21,6 +21,8 @@ def run_script(script_path, desc, *args):
 
 def main():
     parser = argparse.ArgumentParser(description="一鍵建立台灣法律 RAG 索引")
+    parser.add_argument("--skip-download", action="store_true", help="跳過資料下載，使用現有 ChLaw.json")
+    parser.add_argument("--force-download", action="store_true", help="強制重新下載資料，即使已是最新版本")
     parser.add_argument("--skip-data", action="store_true", help="跳過資料載入與切塊階段，僅重建索引")
     parser.add_argument("--test-limit", type=int, default=None, help="限制處理的資料筆數 (用於快速測試)")
     parser.add_argument("--batch-size", type=int, default=None, help="Batch size for embedding，不指定則自動依 VRAM 決定")
@@ -28,10 +30,18 @@ def main():
     
     base_dir = os.path.dirname(os.path.abspath(__file__))
     
+    download_script = os.path.join(base_dir, "download_data.py")
     run_phase2_script = os.path.join(base_dir, "run_phase2.py")
     rebuild_index_script = os.path.abspath(os.path.join(base_dir, "..", "python-rag", "indexing", "rebuild_index.py"))
     
     start_time = time.time()
+
+    # 0. 下載 / 更新法律資料
+    if not args.skip_download and not args.skip_data:
+        download_args = ["--force"] if args.force_download else []
+        run_script(download_script, "Phase 0: 下載法律資料", *download_args)
+    else:
+        print("\n跳過資料下載...")
     
     # 1. 執行資料載入與切塊 (Phase 2)
     if not args.skip_data:
