@@ -1,6 +1,22 @@
 # 台灣法律 RAG MCP 系統 (Taiwan Law RAG MCP)
 
-這是一個專為台灣法律設計的 RAG (Retrieval-Augmented Generation) 系統，提供 MCP Server 介面，可與 Claude Desktop 直接整合。
+個人練習用的 RAG（Retrieval-Augmented Generation）專案，目標是讓 AI 助理（Claude）能夠查詢台灣法律條文。
+
+---
+
+## 為什麼做這個？我怎麼做？
+
+最近剛從AI進修班結業，但沒有RAG相關的完整開發經驗，碰巧身邊有人碰到惡質加盟商問題，有感而發嘗試做做看。
+
+台灣法律有 1300+ 部法律、48000+ 條條文，直接把全文塞給 AI 不現實。RAG 的做法是先把條文建成索引，查詢時只撈出最相關的幾條，再交給 AI 回答。法律資料來自政府開放資料（全國法規資料庫 API），已結構化省去清洗的麻煩，很適合做為練習資料。
+
+查詢分兩種情境：
+- 知道條號（「勞基法第38條」）→ 直接精確比對
+- 只知道情境（「加班費怎麼算」）→ 向量搜尋（FAISS） + BM25 關鍵字搜尋，各取Top-30 →  RRF 融合兩份結果 →  Reranker 重排取Top-20 → 去除重複法律 → 回傳 Top-10
+
+模型選擇上原本想全用本地Qwen3模型，但礙於電腦GPU太爛emdedding要跑好幾天...所以少量測試能跑後，就改為可切換成線上模型的彈性版本。
+
+整個專案90%是AI生成，大概花了3天完成，大致設計流程：找成熟的github專案參考架構 -> gemini 討論可行性 -> claude產生MVP規格書 -> antigravity gemini 生成MVP -> kiro IDE 擴充功能+優化
 
 ---
 
@@ -123,7 +139,7 @@ curl http://localhost:8000/health
 }
 ```
 
-### 步驟 5：設定 Claude Desktop
+### 步驟 5：設定 Claude Desktop 或其他支援 MCP Server 的 AI tool
 
 設定檔位於 `%APPDATA%\Claude\claude_desktop_config.json`，加入：
 
