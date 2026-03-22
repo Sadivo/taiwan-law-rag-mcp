@@ -78,13 +78,15 @@ class ProviderFactory:
         環境變數：
             EMBEDDING_PROVIDER: embedding provider 類型（預設 local）
             RERANKING_PROVIDER: reranking provider 類型（預設 local）
-            PROVIDER_API_KEY: 通用 API 金鑰，適用於目前選擇的 Provider
+            EMBEDDING_API_KEY: embedding provider 專用金鑰
+            RERANKING_API_KEY: reranking provider 專用金鑰
+            PROVIDER_API_KEY: 通用金鑰，當 EMBEDDING_API_KEY / RERANKING_API_KEY 未設定時使用
             EMBEDDING_MODEL_NAME: 覆寫 embedding 模型名稱（選填）
             RERANKING_MODEL_NAME: 覆寫 reranking 模型名稱（選填）
-            EMBEDDING_BATCH_SIZE: 批次大小（預設 100）
+            EMBEDDING_BATCH_SIZE: 批次大小（預設 100，僅影響線上 Provider）
 
-        向下相容：若未設定 PROVIDER_API_KEY，仍會嘗試讀取
-        OPENAI_API_KEY / COHERE_API_KEY 等 Provider 專屬金鑰。
+        金鑰優先順序（以 embedding 為例）：
+            EMBEDDING_API_KEY > PROVIDER_API_KEY > OPENAI_API_KEY / COHERE_API_KEY（向下相容）
         """
         embedding_provider_type = os.environ.get("EMBEDDING_PROVIDER", "local")
         reranking_provider_type = os.environ.get("RERANKING_PROVIDER", "local")
@@ -97,27 +99,31 @@ class ProviderFactory:
         except ValueError:
             batch_size = 100
 
-        # 通用金鑰優先，fallback 到 Provider 專屬金鑰（向下相容）
+        # 金鑰優先順序：專用金鑰 > 通用金鑰 > 舊格式向下相容
         generic_key = os.environ.get("PROVIDER_API_KEY")
-        _provider_keys = {
+        _legacy_keys = {
             "openai": os.environ.get("OPENAI_API_KEY"),
             "cohere": os.environ.get("COHERE_API_KEY"),
         }
 
-        def _resolve_key(provider_type: str) -> str | None:
-            return generic_key or _provider_keys.get(provider_type)
+        def _resolve_key(provider_type: str, specific_key_env: str) -> str | None:
+            return (
+                os.environ.get(specific_key_env)
+                or generic_key
+                or _legacy_keys.get(provider_type)
+            )
 
         embedding_config = ProviderConfig(
-            provider_type=embedding_provider_type,  # type: ignore[arg-type]
+            provider_type=embedding_provider_type,
             model_name=embedding_model_name,
-            api_key=_resolve_key(embedding_provider_type),
+            api_key=_resolve_key(embedding_provider_type, "EMBEDDING_API_KEY"),
             batch_size=batch_size,
         )
 
         reranking_config = ProviderConfig(
-            provider_type=reranking_provider_type,  # type: ignore[arg-type]
+            provider_type=reranking_provider_type,
             model_name=reranking_model_name,
-            api_key=_resolve_key(reranking_provider_type),
+            api_key=_resolve_key(reranking_provider_type, "RERANKING_API_KEY"),
         )
 
         embedding_provider = cls.create_embedding_provider(embedding_config)
