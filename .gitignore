@@ -6,4 +6,5 @@ __pycache__/
 *.faiss
 *.pkl
 *.npy
-ChLaw.json
+data/*
+!data/ChLaw.json

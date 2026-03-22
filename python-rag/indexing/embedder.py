@@ -9,7 +9,7 @@ class Embedder:
     """
     使用 Qwen3-Embedding-4B 進行向量化
     """
-    def __init__(self, model_name: str = "Qwen/Qwen3-Embedding-4B", batch_size: int = 64):
+    def __init__(self, model_name: str = "Qwen/Qwen3-Embedding-4B", batch_size: int = 256):
         self.model_name = model_name
         self.batch_size = batch_size
         
@@ -22,7 +22,7 @@ class Embedder:
             self.device = 'cpu'
             
         print(f"[{self.__class__.__name__}] Loading model {model_name} on {self.device}...")
-        self.model = SentenceTransformer(model_name, device=self.device)
+        self.model = SentenceTransformer(model_name, device=self.device,model_kwargs={"torch_dtype": "float16"})
 
     def embed_query(self, query: str) -> np.ndarray:
         """
@@ -63,7 +63,9 @@ class Embedder:
             texts,
             batch_size=self.batch_size,
             show_progress_bar=True,
-            normalize_embeddings=True
+            normalize_embeddings=True,
+            device=self.device,
+            convert_to_numpy=True
         )
 
         os.makedirs(output_dir, exist_ok=True)

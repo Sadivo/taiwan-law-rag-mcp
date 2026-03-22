@@ -34,35 +34,40 @@
 - **Python**: 3.10+
 - **Node.js**: 18+
 - **管理工具**: `uv` (新世代的 Python 依賴管理工具)
-- **硬體建議**: 建議配備 NVidia GPU (支援 CUDA) 以加速向量化與 Rerank 處理，記憶體 16GB 以上。
+- **硬體建議**: 建議配備 NVidia GPU (支援 CUDA 12.x) 以加速向量化與 Rerank 處理，記憶體 16GB 以上。
 
-### 2. 初始化與安裝
+### 2. 安裝環境
+```bash
+# 安裝 uv（若尚未安裝）
+pip install uv
 
-在專案根目錄下，我們提供了一個整合好的自動化腳本來設定 Python 與 Node.js 環境：
+# 在專案根目錄安裝所有依賴（含 CUDA 版 PyTorch）
+uv sync
 
-```cmd
-scripts\setup.bat
+# 安裝並編譯 MCP Server
+cd mcp-server
+npm install
+npm run build
+cd ..
 ```
-該腳本將會：
-- 檢查必要環境 (Python, Node.js, uv)
-- 於 `python-rag` 內使用 `uv` 建立虛擬環境 (`.venv`) 並安裝依存套件。
-- 於 `mcp-server` 內執行 `npm install` 並編譯 TypeScript (`npm run build`)。
 
-### 3. 載入資料與建立索引 (Phase 2 & Phase 3)
-
-初次使用時，請執行一鍵建立腳本來進行資料切塊與向量/關鍵字索引建立：
-
-```cmd
-# 確保位於專案根目錄
+### 3. 建立索引（首次使用）
+```bash
 uv run scripts\build_index.py
 ```
+
 > **提示**：這會需要一段時間進行 Embedding 計算，請耐心等候。
 
 ### 4. 啟動 Python FastAPI 服務
 
 在啟動 MCP Server 前，必須先啟動後端的檢索搜尋引擎：
 
-```cmd
+```bash
+uv run uvicorn python-rag.main:app --host 0.0.0.0 --port 8000
+```
+
+或進入子目錄啟動：
+```bash
 cd python-rag
 uv run uvicorn main:app --host 0.0.0.0 --port 8000
 ```
