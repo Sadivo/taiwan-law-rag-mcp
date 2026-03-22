@@ -65,9 +65,9 @@ scripts\setup.bat
 填入 Provider 類型與 API 金鑰。同一 provider 只需填 `PROVIDER_API_KEY`：
 
 ```env
-EMBEDDING_PROVIDER=cohere
-RERANKING_PROVIDER=cohere
-PROVIDER_API_KEY=你的金鑰
+EMBEDDING_PROVIDER=voyageai
+RERANKING_PROVIDER=voyageai
+PROVIDER_API_KEY=voyageai金鑰
 ```
 
 混搭不同 provider 時，分別填入各自金鑰：
@@ -77,6 +77,14 @@ EMBEDDING_PROVIDER=voyageai
 RERANKING_PROVIDER=cohere
 EMBEDDING_API_KEY=你的 VoyageAI 金鑰
 RERANKING_API_KEY=你的 Cohere 金鑰
+```
+
+混搭 本地模型 與 線上模型：
+
+```env
+EMBEDDING_PROVIDER=voyageai
+RERANKING_PROVIDER=local
+EMBEDDING_API_KEY=你的 VoyageAI 金鑰
 ```
 
 > 向量維度由系統自動決定，不需要手動設定。
