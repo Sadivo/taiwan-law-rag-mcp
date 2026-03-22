@@ -31,13 +31,29 @@ class Reranker:
         if AutoModelForSequenceClassification is None:
             print("Warning: transformers is not installed.")
             return
-            
+
+        # 在載入前先檢查 VRAM 是否足夠（4B reranker fp16 約需 8GB）
+        if self.device == 'cuda':
+            total_vram_gb = torch.cuda.get_device_properties(0).total_memory / 1e9
+            print(f"[{self.__class__.__name__}] GPU VRAM: {total_vram_gb:.1f} GB")
+            if total_vram_gb < 9.0:
+                fallback_model = "Qwen/Qwen3-Reranker-0.6B"
+                print(f"[{self.__class__.__name__}] Insufficient VRAM for {self.model_name} (~8GB needed), "
+                      f"falling back to {fallback_model}")
+                self.model_name = fallback_model
+
         try:
             print(f"Loading {self.model_name} on {self.device}...")
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-            self.model = AutoModelForSequenceClassification.from_pretrained(self.model_name).to(self.device)
+            # 先在 CPU 載入再移到 GPU，避免 float32 爆 VRAM
+            self.model = AutoModelForSequenceClassification.from_pretrained(self.model_name)
+            if self.device == 'cuda':
+                self.model = self.model.half().to('cuda')
+            else:
+                self.model = self.model.to(self.device)
             self.model.eval()
-            print("Model loaded successfully.")
+            used_gb = torch.cuda.memory_allocated() / 1e9 if self.device == 'cuda' else 0
+            print(f"Model loaded successfully. VRAM usage: {used_gb:.1f} GB")
         except Exception as e:
             print(f"Error loading model: {e}")
 

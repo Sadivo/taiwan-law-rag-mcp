@@ -19,6 +19,18 @@ class Embedder:
         else:
             self.device = 'cpu'
 
+        # 在載入模型前先檢查 VRAM 是否足夠
+        if self.device == 'cuda':
+            total_vram_gb = torch.cuda.get_device_properties(0).total_memory / 1e9
+            print(f"[{self.__class__.__name__}] GPU VRAM: {total_vram_gb:.1f} GB")
+            # 4B fp16 約需 8GB，保留 1GB 緩衝
+            if total_vram_gb < 9.0:
+                fallback_model = "Qwen/Qwen3-Embedding-0.6B"
+                print(f"[{self.__class__.__name__}] Insufficient VRAM for {model_name} (~8GB needed), "
+                      f"falling back to {fallback_model}")
+                model_name = fallback_model
+                self.model_name = fallback_model
+
         print(f"[{self.__class__.__name__}] Loading model {model_name} on {self.device}...")
 
         # 先用 CPU 載入再移到 GPU，避免直接在 GPU 上載入 float32 爆 VRAM
@@ -30,6 +42,10 @@ class Embedder:
             print(f"[{self.__class__.__name__}] Model converted to fp16 and moved to GPU")
             used_gb = torch.cuda.memory_allocated() / 1e9
             print(f"[{self.__class__.__name__}] Model VRAM usage: {used_gb:.1f} GB")
+
+        # 記錄實際 embedding 維度
+        self.embedding_dim = self.model.get_sentence_embedding_dimension()
+        print(f"[{self.__class__.__name__}] Embedding dimension: {self.embedding_dim}")
 
         # 模型載入後才計算 batch size
         self.batch_size = batch_size or self._auto_batch_size()
