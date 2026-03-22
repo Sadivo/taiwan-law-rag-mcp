@@ -60,6 +60,8 @@ scripts\setup.bat
 
 **沒有 GPU（線上模式）**
 
+參考[LangChain Docs](https://docs.langchain.com/oss/python/integrations/embeddings)
+
 填入 Provider 類型與 API 金鑰。同一 provider 只需填 `PROVIDER_API_KEY`：
 
 ```env
