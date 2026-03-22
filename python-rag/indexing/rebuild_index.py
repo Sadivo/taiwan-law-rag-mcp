@@ -11,7 +11,9 @@ import numpy as np
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dotenv import load_dotenv
-load_dotenv()
+# 明確指定專案根目錄的 .env（相對於此檔案往上兩層）
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+load_dotenv(os.path.join(_ROOT, ".env"))
 
 from indexing.faiss_indexer import FaissIndexer
 from indexing.bm25_indexer import BM25Indexer
@@ -121,7 +123,11 @@ def main():
     embedding_config = ProviderConfig(
         provider_type=embedding_provider_type,
         model_name=os.environ.get("EMBEDDING_MODEL_NAME"),
-        api_key=os.environ.get("PROVIDER_API_KEY") or os.environ.get("OPENAI_API_KEY"),
+        api_key=(
+            os.environ.get("EMBEDDING_API_KEY")
+            or os.environ.get("PROVIDER_API_KEY")
+            or os.environ.get("OPENAI_API_KEY")
+        ),
     )
     embedding_provider = ProviderFactory.create_embedding_provider(embedding_config)
 

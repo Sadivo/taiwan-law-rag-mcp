@@ -6,7 +6,6 @@ LangChainEmbeddingProvider 與 LangChainRerankingProvider
 from __future__ import annotations
 
 import importlib
-import inspect
 import logging
 from typing import List, Dict, Any
 
@@ -61,22 +60,11 @@ _BUILTIN_RERANKERS: Dict[str, tuple] = {
     "flashrank": ("flashrank",          "langchain_community.document_compressors", "FlashrankRerank", None),
 }
 
-# 各 provider 的 API key 參數名（pydantic model 的 inspect 不可靠，直接查表）
-_API_KEY_PARAM: Dict[str, str] = {
-    "openai":       "openai_api_key",
-    "azure-openai": "openai_api_key",
-    "cohere":       "cohere_api_key",
-    "google":       "google_api_key",
-    "mistral":      "api_key",
-    "voyageai":     "api_key",
-    "bedrock":      None,   # bedrock 用 AWS credentials，不走 api_key
-    "huggingface":  None,
-}
+# 各 provider 的 API key 參數名 — 已不需要，key 由 factory._inject_api_key() 注入環境變數
+# LangChain 各 provider 會自動從標準環境變數讀取（VOYAGE_API_KEY、OPENAI_API_KEY 等）
+_API_KEY_PARAM: Dict[str, str] = {}
 
-_RERANKER_API_KEY_PARAM: Dict[str, str] = {
-    "cohere":   "cohere_api_key",
-    "voyageai": "api_key",
-}
+_RERANKER_API_KEY_PARAM: Dict[str, str] = {}
 
 
 def _load_lc_class(module_path: str, class_name: str, pip_package: str):
@@ -144,48 +132,25 @@ class LangChainEmbeddingProvider(EmbeddingProvider):
         model = config.model_name or self._default_model_name()
         kwargs: Dict[str, Any] = {}
 
-        # 模型名稱：pydantic model 的 __init__ 只有 **data，inspect 不可靠
-        # 改為直接嘗試 model / model_name 兩種常見命名
         if model:
             try:
-                return self._try_with_model_key(cls, kwargs, model, config, key_param)
+                return self._try_with_model_key(cls, kwargs, model, config)
             except ProviderConfigError:
                 raise
             except Exception:
-                pass  # 下面會再試一次
-
-        if config.api_key and key_param:
-            kwargs[key_param] = config.api_key
-        elif config.api_key:
-            sig = inspect.signature(cls.__init__)
-            for p in ("api_key", "openai_api_key", "cohere_api_key",
-                      "google_api_key", "mistral_api_key", "voyage_api_key"):
-                if p in sig.parameters:
-                    kwargs[p] = config.api_key
-                    break
+                pass
 
         kwargs.update(config.extra.get("init_kwargs", {}))
         return _try_instantiate(cls, kwargs)
 
     def _try_with_model_key(self, cls, base_kwargs: Dict[str, Any], model: str,
-                             config: ProviderConfig, key_param: str | None):
+                             config: ProviderConfig, key_param: str | None = None):
         """逐一嘗試 model / model_name 作為模型參數名，回傳第一個成功的實例。"""
-        api_kwargs: Dict[str, Any] = {}
-        if config.api_key and key_param:
-            api_kwargs[key_param] = config.api_key
-        elif config.api_key:
-            sig = inspect.signature(cls.__init__)
-            for p in ("api_key", "openai_api_key", "cohere_api_key",
-                      "google_api_key", "mistral_api_key", "voyage_api_key"):
-                if p in sig.parameters:
-                    api_kwargs[p] = config.api_key
-                    break
-
         extra = config.extra.get("init_kwargs", {})
         last_exc = None
         for model_key in ("model", "model_name"):
             try:
-                return cls(**base_kwargs, **api_kwargs, **extra, **{model_key: model})
+                return cls(**base_kwargs, **extra, **{model_key: model})
             except Exception as exc:
                 last_exc = exc
         raise ProviderConfigError(
@@ -283,23 +248,11 @@ class LangChainRerankingProvider(RerankingProvider):
     def _build_compressor(self, cls, config: ProviderConfig, key_param: str | None):
         entry = _BUILTIN_RERANKERS.get(self._provider_type)
         model = config.model_name or (entry[3] if entry else None)
-        api_kwargs: Dict[str, Any] = {}
-
-        if config.api_key:
-            if key_param:
-                api_kwargs[key_param] = config.api_key
-            else:
-                sig = inspect.signature(cls.__init__)
-                for p in ("api_key", "cohere_api_key", "voyage_api_key"):
-                    if p in sig.parameters:
-                        api_kwargs[p] = config.api_key
-                        break
-
         extra = config.extra.get("init_kwargs", {})
         last_exc = None
         for model_key in (["model"] if model else []) + [None]:
             try:
-                kwargs = {**api_kwargs, **extra}
+                kwargs = {**extra}
                 if model_key:
                     kwargs[model_key] = model
                 return cls(**kwargs)

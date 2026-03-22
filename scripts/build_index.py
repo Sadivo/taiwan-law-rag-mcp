@@ -3,6 +3,10 @@ import sys
 import subprocess
 import argparse
 import time
+from dotenv import load_dotenv
+
+# 載入 .env，讓所有子進程都能繼承環境變數
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env"))
 
 def run_script(script_path, desc, *args):
     print(f"\n{'='*50}")

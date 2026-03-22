@@ -16,6 +16,28 @@ logger = logging.getLogger(__name__)
 _SUPPORTED_EMBEDDING_TYPES = ("local", "openai", "cohere", "huggingface", "google", "mistral", "voyageai", "bedrock", "azure-openai", "<任意 LangChain Embeddings>")
 _SUPPORTED_RERANKING_TYPES = ("local", "cohere", "voyageai", "flashrank", "<任意 LangChain Reranker>")
 
+# 各 provider 對應的標準環境變數名，LangChain 會自動讀取
+# 只要把 api_key 寫入這個環境變數，就不需要手動傳參數
+_PROVIDER_ENV_KEY: dict[str, str | None] = {
+    "openai":       "OPENAI_API_KEY",
+    "azure-openai": "AZURE_OPENAI_API_KEY",
+    "cohere":       "COHERE_API_KEY",
+    "google":       "GOOGLE_API_KEY",
+    "mistral":      "MISTRAL_API_KEY",
+    "voyageai":     "VOYAGE_API_KEY",
+    "huggingface":  None,  # 不需要 key
+    "bedrock":      None,  # 用 AWS credentials
+}
+
+
+def _inject_api_key(provider_type: str, api_key: str | None) -> None:
+    """將 api_key 寫入 LangChain 期望的標準環境變數，讓 provider 自動讀取。"""
+    if not api_key:
+        return
+    env_var = _PROVIDER_ENV_KEY.get(provider_type)
+    if env_var and not os.environ.get(env_var):
+        os.environ[env_var] = api_key
+
 
 class ProviderFactory:
     """根據設定建立 EmbeddingProvider 與 RerankingProvider 實例"""
@@ -28,15 +50,15 @@ class ProviderFactory:
         if provider_type == "local":
             from .local_providers import LocalEmbeddingProvider
             model_name = config.model_name or "Qwen/Qwen3-Embedding-4B"
-            # local 模型的 batch_size 由 Embedder._auto_batch_size() 根據 VRAM 自動決定
-            # 不傳入 batch_size，避免 EMBEDDING_BATCH_SIZE 環境變數干擾
             return LocalEmbeddingProvider(model_name=model_name)
+
+        # 將 api_key 注入標準環境變數，讓 LangChain 自動讀取，不需要手動傳參數
+        _inject_api_key(provider_type, config.api_key)
 
         if provider_type in ("openai", "cohere", "huggingface", "google", "mistral", "voyageai", "bedrock", "azure-openai"):
             from .langchain_providers import LangChainEmbeddingProvider
             return LangChainEmbeddingProvider(config)
 
-        # 允許任意 provider_type，只要 config.extra["langchain_class"] 有指定
         if config.extra.get("langchain_class"):
             from .langchain_providers import LangChainEmbeddingProvider
             return LangChainEmbeddingProvider(config)
@@ -56,6 +78,9 @@ class ProviderFactory:
             from .local_providers import LocalRerankingProvider
             model_name = config.model_name or "Qwen/Qwen3-Reranker-4B"
             return LocalRerankingProvider(model_name=model_name)
+
+        # 將 api_key 注入標準環境變數，讓 LangChain 自動讀取
+        _inject_api_key(provider_type, config.api_key)
 
         if provider_type in ("cohere", "voyageai", "flashrank"):
             from .langchain_providers import LangChainRerankingProvider
