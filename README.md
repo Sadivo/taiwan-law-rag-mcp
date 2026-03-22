@@ -14,7 +14,7 @@
 - 知道條號（「勞基法第38條」）→ 直接精確比對
 - 只知道情境（「加班費怎麼算」）→ 向量搜尋（FAISS） + BM25 關鍵字搜尋，各取Top-30 →  RRF 融合兩份結果 →  Reranker 重排取Top-20 → 去除重複法律 → 回傳 Top-10
 
-模型選擇上原本想全用本地Qwen3模型，但礙於電腦GPU太爛emdedding要跑好幾天...所以少量測試能跑後，就改為可切換成線上模型的彈性版本。
+模型選擇上原本想全用本地Qwen3模型，但礙於電腦GPU太爛embedding要跑好幾天...所以少量測試能跑後，就改為可切換成線上模型的彈性版本。
 
 整個專案90%是AI生成，大概花了3天完成，大致設計流程：找成熟的github專案參考架構 -> gemini 討論可行性 -> claude產生MVP規格書 -> antigravity gemini 生成MVP -> kiro IDE 擴充功能+優化
 
@@ -60,12 +60,14 @@ scripts\setup.bat
 
 **沒有 GPU（線上模式）**
 
+參考[LangChain Docs](https://docs.langchain.com/oss/python/integrations/embeddings)
+
 填入 Provider 類型與 API 金鑰。同一 provider 只需填 `PROVIDER_API_KEY`：
 
 ```env
-EMBEDDING_PROVIDER=cohere
-RERANKING_PROVIDER=cohere
-PROVIDER_API_KEY=你的金鑰
+EMBEDDING_PROVIDER=voyageai
+RERANKING_PROVIDER=voyageai
+PROVIDER_API_KEY=voyageai金鑰
 ```
 
 混搭不同 provider 時，分別填入各自金鑰：
@@ -75,6 +77,14 @@ EMBEDDING_PROVIDER=voyageai
 RERANKING_PROVIDER=cohere
 EMBEDDING_API_KEY=你的 VoyageAI 金鑰
 RERANKING_API_KEY=你的 Cohere 金鑰
+```
+
+混搭 本地模型 與 線上模型：
+
+```env
+EMBEDDING_PROVIDER=voyageai
+RERANKING_PROVIDER=local
+EMBEDDING_API_KEY=你的 VoyageAI 金鑰
 ```
 
 > 向量維度由系統自動決定，不需要手動設定。
