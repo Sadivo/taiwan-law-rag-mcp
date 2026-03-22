@@ -8,8 +8,7 @@ __pycache__/
 *.npy
 
 # 索引資料（build_index.py 產生，不 commit）
-data/*
-!data/ChLaw.json
+data/
 
 # pytest / hypothesis 快取
 .pytest_cache/

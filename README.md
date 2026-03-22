@@ -71,9 +71,34 @@ RERANKING_API_KEY=你的 Cohere 金鑰
 uv run scripts/build_index.py
 ```
 
-這會讀取法律資料並建立向量索引，需要一段時間。
+這會自動從官方 API 下載最新法律資料，接著建立向量索引，需要一段時間。
 
 > 使用線上 Embedding Provider 時，建立索引會呼叫線上 API，會產生費用。
+
+**常用選項：**
+
+```bash
+# 強制重新下載資料（即使已有資料）
+uv run scripts/build_index.py --force-download
+
+# 跳過下載，直接用現有資料建立索引
+uv run scripts/build_index.py --skip-download
+
+# 跳過資料處理，只重建向量索引
+uv run scripts/build_index.py --skip-data
+```
+
+**手動更新資料（不重建索引）：**
+
+```bash
+# 有資料就檢查版本，有新版本會詢問是否更新
+uv run scripts/download_data.py
+
+# 強制重新下載，跳過確認
+uv run scripts/download_data.py --force
+```
+
+更新時會自動比對新舊資料，輸出新增、刪除、修改的法律清單。
 
 ### 步驟 4：啟動 Python RAG 服務
 
