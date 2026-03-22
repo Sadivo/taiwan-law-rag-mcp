@@ -27,54 +27,41 @@ Python RAG 引擎 (python-rag/, FastAPI)
 ### 步驟 1：安裝環境
 
 ```bash
-pip install uv          # 若尚未安裝 uv
-uv sync                 # 安裝 Python 依賴
-
-cd mcp-server
-npm install
-npm run build
-cd ..
+scripts\setup.bat
 ```
 
-### 步驟 2：選擇 Provider 並設定
+> 沒有 `uv`？先安裝：https://docs.astral.sh/uv/getting-started/installation/
 
-複製設定範本：
+### 步驟 2：設定 Provider
 
-```bash
-cp .env.example .env
-```
+編輯 `.env`（`setup.bat` 已自動建立）：
 
-**有 GPU（本地模式，不需要任何 API 金鑰）**
+**有 GPU（本地模式，不需要 API 金鑰）**
 
-`.env` 保持預設即可，什麼都不用改：
-```
-EMBEDDING_PROVIDER=local
-RERANKING_PROVIDER=local
-```
-
-系統會自動偵測 GPU VRAM：
-- VRAM ≥ 9GB → 載入 Qwen3-Embedding-4B（2560 維）
-- VRAM < 9GB → 自動降級為 Qwen3-Embedding-0.6B（1024 維）
+預設值即可，不用改任何東西。系統會自動偵測 VRAM：
+- VRAM ≥ 9GB → Qwen3-Embedding-4B
+- VRAM < 9GB → 自動降級為 Qwen3-Embedding-0.6B
 
 **沒有 GPU（線上模式）**
 
-在 `.env` 填入 Provider 類型和 API 金鑰：
+填入 Provider 類型與 API 金鑰。同一 provider 只需填 `PROVIDER_API_KEY`：
 
-```
-EMBEDDING_PROVIDER=openai
-RERANKING_PROVIDER=cohere
-PROVIDER_API_KEY=你的金鑰
-```
-
-換成 Cohere 只需改前兩行，金鑰那行不動：
-
-```
+```env
 EMBEDDING_PROVIDER=cohere
 RERANKING_PROVIDER=cohere
 PROVIDER_API_KEY=你的金鑰
 ```
 
-向量維度由系統自動決定，不需要手動設定。
+混搭不同 provider 時，分別填入各自金鑰：
+
+```env
+EMBEDDING_PROVIDER=voyageai
+RERANKING_PROVIDER=cohere
+EMBEDDING_API_KEY=你的 VoyageAI 金鑰
+RERANKING_API_KEY=你的 Cohere 金鑰
+```
+
+> 向量維度由系統自動決定，不需要手動設定。
 
 ### 步驟 3：建立索引
 
@@ -84,7 +71,7 @@ PROVIDER_API_KEY=你的金鑰
 uv run scripts/build_index.py
 ```
 
-這會讀取 `data/ChLaw.json/` 的法律資料並建立向量索引，需要一段時間。
+這會讀取法律資料並建立向量索引，需要一段時間。
 
 > 使用線上 Embedding Provider 時，建立索引會呼叫線上 API，會產生費用。
 
@@ -135,6 +122,54 @@ curl http://localhost:8000/health
 
 ---
 
+## MCP 工具說明
+
+共提供 5 個工具，Claude 會根據你的問題自動選擇適合的工具。
+
+### 1. 語義搜尋（semantic_search）
+
+根據問題描述，用 AI 向量相似度找出最相關的法條。適合不知道確切條號、只知道情境的查詢。
+
+使用範例：
+> 「員工被資遣，雇主需要給多少預告期？」
+> 「房東可以隨意漲租金嗎？」
+> 「公司董事的責任有哪些？」
+
+### 2. 精確條文查詢（exact_search）
+
+已知法律名稱與條號時，直接取得該條文。支援常見別名（勞基法、個資法等）。
+
+使用範例：
+> 「勞基法第38條」
+> 「民法第184條」
+> 「公司法第23條」
+
+### 3. 法律名稱搜尋（search_law_by_name）
+
+列出某部法律的所有條文。適合想瀏覽整部法律架構時使用。
+
+使用範例：
+> 「列出勞動基準法所有條文」
+> 「性別平等工作法有哪些規定？」
+
+### 4. 取得完整法律（get_law_full_text）
+
+取得某部法律的完整全文，包含章節結構、所有條文與官方連結。
+
+使用範例：
+> 「給我消費者保護法的完整內容」
+> 「個人資料保護法全文」
+
+### 5. 法律比較（compare_laws）
+
+比較多部法律在同一主題下的相關條文差異，適合需要跨法律分析的情境。
+
+使用範例：
+> 「比較民法和消費者保護法對於損害賠償的規定」
+> 「勞動基準法和勞工退休金條例對退休金的規定有何不同？」
+
+---
+
 ## Provider 選項
 
 ### Embedding Provider（`EMBEDDING_PROVIDER`）
@@ -142,35 +177,41 @@ curl http://localhost:8000/health
 | 值 | 說明 | 需要 GPU | 需要金鑰 |
 |---|---|---|---|
 | `local`（預設） | 本地 Qwen3 模型，自動依 VRAM 選擇 4B 或 0.6B | 是 | 否 |
-| `openai` | OpenAI Embeddings | 否 | `PROVIDER_API_KEY` |
-| `cohere` | Cohere Embeddings | 否 | `PROVIDER_API_KEY` |
+| `openai` | OpenAI Embeddings | 否 | 是 |
+| `cohere` | Cohere Embeddings | 否 | 是 |
 | `huggingface` | HuggingFace Embeddings（本機推論） | 否 | 否 |
-| `google` | Google Generative AI Embeddings | 否 | `PROVIDER_API_KEY` |
-| `mistral` | Mistral AI Embeddings | 否 | `PROVIDER_API_KEY` |
-| `voyageai` | Voyage AI Embeddings | 否 | `PROVIDER_API_KEY` |
+| `google` | Google Generative AI Embeddings | 否 | 是 |
+| `mistral` | Mistral AI Embeddings | 否 | 是 |
+| `voyageai` | Voyage AI Embeddings | 否 | 是 |
 | `bedrock` | AWS Bedrock Embeddings | 否 | AWS 憑證 |
-| `azure-openai` | Azure OpenAI Embeddings | 否 | `PROVIDER_API_KEY` |
-
-任何 LangChain 支援的 Embeddings class 都能用，透過 `ProviderConfig(extra={"langchain_class": "module.ClassName"})` 指定。
+| `azure-openai` | Azure OpenAI Embeddings | 否 | 是 |
 
 ### Reranking Provider（`RERANKING_PROVIDER`）
 
 | 值 | 說明 | 需要 GPU | 需要金鑰 |
 |---|---|---|---|
 | `local`（預設） | 本地 Qwen3-Reranker-4B | 是 | 否 |
-| `cohere` | Cohere Rerank API | 否 | `PROVIDER_API_KEY` |
-| `voyageai` | Voyage AI Rerank | 否 | `PROVIDER_API_KEY` |
+| `cohere` | Cohere Rerank API | 否 | 是 |
+| `voyageai` | Voyage AI Rerank | 否 | 是 |
 | `flashrank` | FlashRank（本機輕量 reranker） | 否 | 否 |
+
+### 金鑰設定
+
+| 環境變數 | 說明 |
+|---|---|
+| `PROVIDER_API_KEY` | 通用金鑰，embedding 和 reranking 共用同一 provider 時使用 |
+| `EMBEDDING_API_KEY` | Embedding 專用金鑰，混搭不同 provider 時使用 |
+| `RERANKING_API_KEY` | Reranking 專用金鑰，混搭不同 provider 時使用 |
+
+優先順序：`EMBEDDING_API_KEY` > `PROVIDER_API_KEY` > `OPENAI_API_KEY` / `COHERE_API_KEY`（向下相容）
 
 ### 選填設定
 
-```
+```env
 EMBEDDING_MODEL_NAME=   # 覆寫 embedding 模型，例如 text-embedding-3-large
 RERANKING_MODEL_NAME=   # 覆寫 reranking 模型
-EMBEDDING_BATCH_SIZE=   # 批次大小，預設 100
+EMBEDDING_BATCH_SIZE=   # API 批次大小，預設 100（本地模型不受此影響）
 ```
-
-> 向下相容：若你已有 `OPENAI_API_KEY` / `COHERE_API_KEY` 等舊格式的環境變數，不設定 `PROVIDER_API_KEY` 也能正常運作。
 
 ---
 
@@ -183,14 +224,13 @@ EMBEDDING_BATCH_SIZE=   # 批次大小，預設 100
 | `local` | Qwen3-Embedding-4B | 2560 |
 | `local`（VRAM 不足） | Qwen3-Embedding-0.6B | 1024 |
 | `openai` | text-embedding-3-small | 1536 |
-| `openai` + `EMBEDDING_MODEL_NAME=text-embedding-3-large` | text-embedding-3-large | 3072 |
 | `cohere` | embed-multilingual-v3.0 | 1024 |
+| `voyageai` | voyage-3 | 1024 |
 
 ---
 
 ## 測試
 
 ```bash
-cd python-rag
-uv run python -m pytest tests/ -v
+uv run python -m pytest python-rag/tests/ -v
 ```
