@@ -15,38 +15,76 @@ from .cache import query_cache
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# 模擬或依賴注入 Retrieval Service 的介面
-# 未來可替換為實際的檢索模組 (Phase 4 實作)
-def get_retrieval_service():
-    class DummyRetrievalService:
-        def search_semantic(self, query: str, top_k: int, filter_category: str):
-            return [{
-                "law_name": "勞動基準法", "law_level": "法律",
-                "law_category": "行政>勞動部>勞動條件及就業平等目", "law_url": "https://law.moj.gov.tw/",
-                "article_no": "第 38 條", "chapter": "第四章",
-                "content": f"這是關於 {query} 的模擬條文...", "score": 0.95, "modified_date": "20180621"
-            }]
+# Module-level singleton — initialized once on first request
+_retrieval_service = None
+_embedding_provider_name: str = "unknown"
+_reranking_provider_name: str = "unknown"
 
-        def search_exact(self, query: str):
-            return []
-            
-        def search_law(self, law_name: str, include_abolished: bool):
-            return []
-            
-        def get_law_full(self, law_name: str):
-            law = Law(
-                law_name=law_name, law_level="法律", law_category="測試分類",
-                law_url="http://test", modified_date="20200101", is_abolished=False
-            )
-            return {"law": law, "articles": []}
-            
-        def compare_laws(self, law_names: list, topic: str):
-            return {name: [] for name in law_names}
-            
-        def rebuild_index(self, force: bool):
-            return {"status": "success", "chunks": 55000, "time": 10.5}
-            
-    return DummyRetrievalService()
+
+def _provider_display_name(provider) -> str:
+    """Build a 'type:model' display string from a provider instance."""
+    provider_type = type(provider).__name__
+    # LocalEmbeddingProvider / LocalRerankingProvider
+    if hasattr(provider, "_embedder"):
+        model = getattr(provider._embedder, "model_name", "")
+        short = model.split("/")[-1] if model else provider_type
+        return f"local:{short}"
+    if hasattr(provider, "_reranker"):
+        model = getattr(provider._reranker, "model_name", "")
+        short = model.split("/")[-1] if model else provider_type
+        return f"local:{short}"
+    # LangChainEmbeddingProvider / LangChainRerankingProvider
+    if hasattr(provider, "_config"):
+        cfg = provider._config
+        ptype = getattr(cfg, "provider_type", "unknown")
+        model = getattr(cfg, "model_name", None) or ""
+        short = model.split("/")[-1] if model else ptype
+        return f"{ptype}:{short}" if short else ptype
+    return provider_type
+
+
+def get_retrieval_service():
+    """Return the singleton RetrievalService, initializing it on first call."""
+    global _retrieval_service, _embedding_provider_name, _reranking_provider_name
+
+    if _retrieval_service is not None:
+        return _retrieval_service
+
+    try:
+        from providers.factory import ProviderFactory
+        from retrieval.retrieval_service import RetrievalService
+        from retrieval.vector_retriever import VectorRetriever
+        from retrieval.bm25_retriever import BM25Retriever
+        from retrieval.hybrid_retriever import HybridRetriever
+
+        logger.info("Initializing providers via ProviderFactory.from_env()...")
+        embedding_provider, reranking_provider = ProviderFactory.from_env()
+
+        _embedding_provider_name = _provider_display_name(embedding_provider)
+        _reranking_provider_name = _provider_display_name(reranking_provider)
+
+        logger.info(
+            "Providers initialized: embedding=%s, reranking=%s",
+            _embedding_provider_name,
+            _reranking_provider_name,
+        )
+
+        vector_retriever = VectorRetriever()
+        bm25_retriever = BM25Retriever()
+        hybrid_retriever = HybridRetriever(
+            vector_retriever, bm25_retriever, embedder=embedding_provider
+        )
+
+        _retrieval_service = RetrievalService(
+            embedding_provider, reranking_provider, hybrid_retriever
+        )
+        logger.info("RetrievalService singleton created successfully.")
+    except Exception as exc:
+        logger.error("Failed to initialize RetrievalService: %s", exc)
+        raise
+
+    return _retrieval_service
+
 
 def _generate_cache_key(prefix: str, **kwargs) -> str:
     key_content = json.dumps(kwargs, sort_keys=True)

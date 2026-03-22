@@ -2,15 +2,15 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Dict
 
 class SearchResult(BaseModel):
-    law_name: str = Field(description="法律名稱")
-    law_level: str = Field(description="法律層級 (憲法/法律)")
-    law_category: str = Field(description="法律類別")
-    law_url: str = Field(description="官方連結")
-    article_no: str = Field(description="條號 (如: '第 38 條')")
-    chapter: str = Field(description="章節")
-    content: str = Field(description="條文內容")
-    score: float = Field(description="相關度分數")
-    modified_date: str = Field(description="修正日期")
+    law_name: str = Field(default="", description="法律名稱")
+    law_level: str = Field(default="", description="法律層級 (憲法/法律)")
+    law_category: str = Field(default="", description="法律類別")
+    law_url: str = Field(default="", description="官方連結")
+    article_no: str = Field(default="", description="條號 (如: '第 38 條')")
+    chapter: str = Field(default="", description="章節")
+    content: str = Field(default="", description="條文內容")
+    score: Optional[float] = Field(default=None, description="相關度分數")
+    modified_date: str = Field(default="", description="修正日期")
 
 # --- Requests ---
 
@@ -73,3 +73,8 @@ class RebuildIndexResponse(BaseModel):
     status: str
     chunks: int
     time: float
+
+class HealthResponse(BaseModel):
+    status: str
+    embedding_provider: str   # e.g. "local:Qwen3-Embedding-4B"
+    reranking_provider: str   # e.g. "cohere:rerank-multilingual-v3.0"

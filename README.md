@@ -1,97 +1,119 @@
 # 台灣法律 RAG MCP 系統 (Taiwan Law RAG MCP)
 
-這是一個專為台灣法律設計的 RAG (Retrieval-Augmented Generation) 系統，並提供 Model Context Protocol (MCP) Server 介面，可與 Claude Desktop 或任何支援 MCP 的 LLM 客戶端無縫整合。
-
-系統結合了 Qwen3-Embedding-4B 的語意向量搜尋以及 Whoosh 的 BM25 關鍵字搜尋，透過 Reciprocal Rank Fusion (RRF) 混合檢索機制，再以 Qwen3-Reranker-4B 進行精準的重排序，能提供高召回率與高準確率的法條搜尋結果。
-
-## 🌟 核心特色
-
-- **混合檢索架構 (Hybrid Search)**：結合 FAISS 向量搜尋與 Whoosh 關鍵字全文搜尋。
-- **高精度重排序 (Reranking)**：利用 Qwen3-Reranker-4B 模型計算 Query 與 Document 的 Cross-Encoder 相關度。
-- **條文級切塊 (Article-Level Chunking)**：精確保留法律名稱、條號、章節等 Metadata，讓結果具備高度上下文。
-- **MCP 整合支援**：透過 `@modelcontextprotocol/sdk` 提供 `semantic_search`, `exact_search`, `search_law_by_name`, `get_law_full_text`, `compare_laws` 等工具。
+這是一個專為台灣法律設計的 RAG (Retrieval-Augmented Generation) 系統，提供 MCP Server 介面，可與 Claude Desktop 直接整合。
 
 ---
 
-## 🏗️ 系統架構
+## 系統架構
 
-專案主要分為兩大元件：
-
-1. **Python RAG 引擎 (`python-rag/`)**：
-   - 使用 FastAPI 提供 HTTP 檢索介面。
-   - 負責資料載入、文本切塊、向量化、FAISS/BM25 索引建立與混合檢索邏輯。
-
-2. **MCP Server (`mcp-server/`)**：
-   - 使用 TypeScript 開發。
-   - 作為中介層，將 LLM 傳入的 MCP 請求轉為對 Python RAG 引擎的呼叫，並將結果格式化為 Markdown 傳回給大模型。
+```
+Claude Desktop
+     │  MCP Protocol
+     ▼
+MCP Server (mcp-server/, TypeScript)
+     │  HTTP
+     ▼
+Python RAG 引擎 (python-rag/, FastAPI)
+     │
+     ├── Embedding Provider  ──► 將查詢文字轉為向量
+     ├── Reranking Provider  ──► 對搜尋結果重新排序
+     └── HybridRetriever     ──► FAISS 向量搜尋 + BM25 關鍵字搜尋
+```
 
 ---
 
-## 🚀 快速開始
+## 快速開始
 
-### 1. 系統需求
-- **OS**: Windows (或其他支援的作業系統)
-- **Python**: 3.10+
-- **Node.js**: 18+
-- **管理工具**: `uv` (新世代的 Python 依賴管理工具)
-- **硬體建議**: 建議配備 NVidia GPU (支援 CUDA 12.x) 以加速向量化與 Rerank 處理，記憶體 16GB 以上。
+### 步驟 1：安裝環境
 
-### 2. 安裝環境
 ```bash
-# 安裝 uv（若尚未安裝）
-pip install uv
+pip install uv          # 若尚未安裝 uv
+uv sync                 # 安裝 Python 依賴
 
-# 在專案根目錄安裝所有依賴（含 CUDA 版 PyTorch）
-uv sync
-
-# 安裝並編譯 MCP Server
 cd mcp-server
 npm install
 npm run build
 cd ..
 ```
 
-### 3. 建立索引（首次使用）
-```bash
-uv run scripts\build_index.py
-```
+### 步驟 2：選擇 Provider 並設定
 
-> **提示**：這會需要一段時間進行 Embedding 計算，請耐心等候。
-
-### 4. 啟動 Python FastAPI 服務
-
-在啟動 MCP Server 前，必須先啟動後端的檢索搜尋引擎：
+複製設定範本：
 
 ```bash
-uv run uvicorn python-rag.main:app --host 0.0.0.0 --port 8000
+cp .env.example .env
 ```
 
-或進入子目錄啟動：
+**有 GPU（本地模式，不需要任何 API 金鑰）**
+
+`.env` 保持預設即可，什麼都不用改：
+```
+EMBEDDING_PROVIDER=local
+RERANKING_PROVIDER=local
+```
+
+系統會自動偵測 GPU VRAM：
+- VRAM ≥ 9GB → 載入 Qwen3-Embedding-4B（2560 維）
+- VRAM < 9GB → 自動降級為 Qwen3-Embedding-0.6B（1024 維）
+
+**沒有 GPU（線上模式）**
+
+在 `.env` 填入 Provider 類型和 API 金鑰：
+
+```
+EMBEDDING_PROVIDER=openai
+RERANKING_PROVIDER=cohere
+PROVIDER_API_KEY=你的金鑰
+```
+
+換成 Cohere 只需改前兩行，金鑰那行不動：
+
+```
+EMBEDDING_PROVIDER=cohere
+RERANKING_PROVIDER=cohere
+PROVIDER_API_KEY=你的金鑰
+```
+
+向量維度由系統自動決定，不需要手動設定。
+
+### 步驟 3：建立索引
+
+**首次使用，或切換 Embedding Provider 之後，必須重新執行：**
+
 ```bash
-cd python-rag
-uv run uvicorn main:app --host 0.0.0.0 --port 8000
+uv run scripts/build_index.py
 ```
 
----
+這會讀取 `data/ChLaw.json/` 的法律資料並建立向量索引，需要一段時間。
 
-## 🧪 測試與驗證
+> 使用線上 Embedding Provider 時，建立索引會呼叫線上 API，會產生費用。
 
-執行我們提供的測試腳本，自動對幾個問題進行分類與檢索驗證（包含語義檢索、精確查找）：
+### 步驟 4：啟動 Python RAG 服務
 
-```cmd
-# 在專案根目錄執行
-uv run scripts\test_query.py
+**每次使用前都需要啟動，MCP Server 透過 HTTP 連接這個服務：**
+
+```bash
+uv run python-rag/main.py
 ```
 
-預期能在 1.5 秒之內回傳查詢結果，例如查詢「加班費如何計算」時會將勞基法第 24 條等高相關結果排在最前面。
+確認服務正常（另開一個 terminal）：
 
----
+```bash
+curl http://localhost:8000/health
+```
 
-## 🔌 將 MCP Server 加入 Claude Desktop
+回應中會顯示目前使用的 Provider：
+```json
+{
+  "status": "ok",
+  "embedding_provider": "local:Qwen3-Embedding-4B",
+  "reranking_provider": "local:Qwen3-Reranker-4B"
+}
+```
 
-設定檔位於：`%APPDATA%\Claude\claude_desktop_config.json`
+### 步驟 5：設定 Claude Desktop
 
-在 JSON 中加入以下配置：
+設定檔位於 `%APPDATA%\Claude\claude_desktop_config.json`，加入：
 
 ```json
 {
@@ -99,7 +121,7 @@ uv run scripts\test_query.py
     "taiwan-law": {
       "command": "node",
       "args": [
-        "C:\\絕對路徑\\taiwan-law-rag-mcp\\mcp-server\\dist\\index.js"
+        "C:\\你的路徑\\taiwan-law-rag-mcp\\mcp-server\\dist\\index.js"
       ],
       "env": {
         "RAG_API_URL": "http://localhost:8000"
@@ -108,10 +130,67 @@ uv run scripts\test_query.py
   }
 }
 ```
-重啟 Claude Desktop 後即可透過對話直接使用台灣法規工具。
+
+重啟 Claude Desktop 後，即可在對話中直接查詢台灣法律。
 
 ---
 
-## 📄 授權
+## Provider 選項
 
-本專案供學習與開發交流用途，資料來源請遵循原提供者之相關授權條款。
+### Embedding Provider（`EMBEDDING_PROVIDER`）
+
+| 值 | 說明 | 需要 GPU | 需要金鑰 |
+|---|---|---|---|
+| `local`（預設） | 本地 Qwen3 模型，自動依 VRAM 選擇 4B 或 0.6B | 是 | 否 |
+| `openai` | OpenAI Embeddings | 否 | `PROVIDER_API_KEY` |
+| `cohere` | Cohere Embeddings | 否 | `PROVIDER_API_KEY` |
+| `huggingface` | HuggingFace Embeddings（本機推論） | 否 | 否 |
+| `google` | Google Generative AI Embeddings | 否 | `PROVIDER_API_KEY` |
+| `mistral` | Mistral AI Embeddings | 否 | `PROVIDER_API_KEY` |
+| `voyageai` | Voyage AI Embeddings | 否 | `PROVIDER_API_KEY` |
+| `bedrock` | AWS Bedrock Embeddings | 否 | AWS 憑證 |
+| `azure-openai` | Azure OpenAI Embeddings | 否 | `PROVIDER_API_KEY` |
+
+任何 LangChain 支援的 Embeddings class 都能用，透過 `ProviderConfig(extra={"langchain_class": "module.ClassName"})` 指定。
+
+### Reranking Provider（`RERANKING_PROVIDER`）
+
+| 值 | 說明 | 需要 GPU | 需要金鑰 |
+|---|---|---|---|
+| `local`（預設） | 本地 Qwen3-Reranker-4B | 是 | 否 |
+| `cohere` | Cohere Rerank API | 否 | `PROVIDER_API_KEY` |
+| `voyageai` | Voyage AI Rerank | 否 | `PROVIDER_API_KEY` |
+| `flashrank` | FlashRank（本機輕量 reranker） | 否 | 否 |
+
+### 選填設定
+
+```
+EMBEDDING_MODEL_NAME=   # 覆寫 embedding 模型，例如 text-embedding-3-large
+RERANKING_MODEL_NAME=   # 覆寫 reranking 模型
+EMBEDDING_BATCH_SIZE=   # 批次大小，預設 100
+```
+
+> 向下相容：若你已有 `OPENAI_API_KEY` / `COHERE_API_KEY` 等舊格式的環境變數，不設定 `PROVIDER_API_KEY` 也能正常運作。
+
+---
+
+## 切換 Provider 的注意事項
+
+切換 Embedding Provider 時，向量維度會改變，**必須重新建立索引**，否則啟動時會報錯。
+
+| Provider | 預設模型 | 向量維度 |
+|---|---|---|
+| `local` | Qwen3-Embedding-4B | 2560 |
+| `local`（VRAM 不足） | Qwen3-Embedding-0.6B | 1024 |
+| `openai` | text-embedding-3-small | 1536 |
+| `openai` + `EMBEDDING_MODEL_NAME=text-embedding-3-large` | text-embedding-3-large | 3072 |
+| `cohere` | embed-multilingual-v3.0 | 1024 |
+
+---
+
+## 測試
+
+```bash
+cd python-rag
+uv run python -m pytest tests/ -v
+```
