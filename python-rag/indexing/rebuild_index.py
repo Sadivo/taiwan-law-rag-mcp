@@ -34,7 +34,7 @@ def main():
     parser.add_argument("--chunks-file", type=str, default="../data/chunks.json", help="Path to chunks JSON file")
     parser.add_argument("--output-dir", type=str, default="../data", help="Output directory for indices")
     parser.add_argument("--test-limit", type=int, default=None, help="Limit number of chunks for testing")
-    parser.add_argument("--batch-size", type=int, default=256, help="Batch size for embedding")
+    parser.add_argument("--batch-size", type=int, default=None, help="Batch size for embedding，不指定則自動依 VRAM 決定")
     parser.add_argument("--force", action="store_true", help="Force rebuild (overwrite existing)")
     parser.add_argument("--model-name", type=str, default="Qwen/Qwen3-Embedding-4B", help="Model name for sentence-transformers")
     parser.add_argument("--dict-path", type=str, default=None, help="Custom dict path for jieba")

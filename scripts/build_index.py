@@ -23,6 +23,7 @@ def main():
     parser = argparse.ArgumentParser(description="一鍵建立台灣法律 RAG 索引")
     parser.add_argument("--skip-data", action="store_true", help="跳過資料載入與切塊階段，僅重建索引")
     parser.add_argument("--test-limit", type=int, default=None, help="限制處理的資料筆數 (用於快速測試)")
+    parser.add_argument("--batch-size", type=int, default=None, help="Batch size for embedding，不指定則自動依 VRAM 決定")
     args = parser.parse_args()
     
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -48,6 +49,8 @@ def main():
     ]
     if args.test_limit:
         index_args.extend(["--test-limit", str(args.test_limit)])
+    if args.batch_size:
+        index_args.extend(["--batch-size", str(args.batch_size)])
         
     run_script(rebuild_index_script, "Phase 3: 建立 FAISS 與 BM25 索引", *index_args)
     
