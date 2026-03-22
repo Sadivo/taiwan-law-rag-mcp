@@ -58,6 +58,8 @@ scripts\setup.bat
 - VRAM ≥ 9GB → Qwen3-Embedding-4B
 - VRAM < 9GB → 自動降級為 Qwen3-Embedding-0.6B
 
+> 我的 RTX 3060 12GB 要跑一天多，給你們參考= =
+
 **沒有 GPU（線上模式）**
 
 參考[LangChain Docs](https://docs.langchain.com/oss/python/integrations/embeddings)
