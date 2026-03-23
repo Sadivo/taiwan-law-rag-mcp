@@ -36,7 +36,13 @@ async def health_check():
         reranking_provider=routes._reranking_provider_name,
     )
 
+
 if __name__ == "__main__":
     import uvicorn
-    # 提供直接執行 main.py 的測試方式
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    import os
+
+    host = os.getenv("API_HOST", "127.0.0.1")
+    port = int(os.getenv("API_PORT", "8073") or "8073")
+
+    logging.info(f"啟動伺服器：http://{host}:{port}")
+    uvicorn.run("main:app", host=host, port=port, reload=True)
