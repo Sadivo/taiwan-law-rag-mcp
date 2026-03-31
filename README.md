@@ -21,17 +21,19 @@
 ## 系統架構
 
 ```
-Claude Desktop
-     │  MCP Protocol
-     ▼
-MCP Server (mcp-server/, TypeScript)
-     │  HTTP
-     ▼
+Claude Desktop / 任何 HTTP Client / 你的 App
+     │  MCP Protocol          │  HTTP
+     ▼                        ▼
+MCP Server              POST /chat
+(mcp-server/, TypeScript)    │
+     │  HTTP                  │
+     ▼                        ▼
 Python RAG 引擎 (python-rag/, FastAPI)
      │
      ├── Embedding Provider  ──► 將查詢文字轉為向量
      ├── Reranking Provider  ──► 對搜尋結果重新排序
-     └── HybridRetriever     ──► FAISS 向量搜尋 + BM25 關鍵字搜尋
+     ├── HybridRetriever     ──► FAISS 向量搜尋 + BM25 關鍵字搜尋
+     └── GenerationProvider  ──► LLM 生成有引用來源的回答（Ollama / OpenAI / Anthropic）
 ```
 
 ---
@@ -88,6 +90,27 @@ EMBEDDING_API_KEY=你的 VoyageAI 金鑰
 ```
 
 > 向量維度由系統自動決定，不需要手動設定。
+
+**Generation Provider（LLM 問答）**
+
+設定用於生成回答的 LLM，支援本地 Ollama 或線上 API：
+
+```env
+# 本地 Ollama（需先啟動 ollama serve）
+GENERATION_PROVIDER=ollama
+GENERATION_MODEL_NAME=qwen3:8b
+OLLAMA_BASE_URL=http://localhost:11434
+
+# 或使用 OpenAI
+GENERATION_PROVIDER=openai
+GENERATION_API_KEY=sk-...
+GENERATION_MODEL_NAME=gpt-4o-mini
+
+# 或使用 Anthropic
+GENERATION_PROVIDER=anthropic
+GENERATION_API_KEY=sk-ant-...
+GENERATION_MODEL_NAME=claude-3-5-haiku-20241022
+```
 
 ### 步驟 3：建立索引
 
@@ -175,7 +198,7 @@ curl http://localhost:8000/health
 
 ## MCP 工具說明
 
-共提供 5 個工具，Claude 會根據你的問題自動選擇適合的工具。
+共提供 6 個工具，Claude 會根據你的問題自動選擇適合的工具。
 
 ### 1. 語義搜尋（semantic_search）
 
@@ -218,6 +241,17 @@ curl http://localhost:8000/health
 使用範例：
 > 「比較民法和消費者保護法對於損害賠償的規定」
 > 「勞動基準法和勞工退休金條例對退休金的規定有何不同？」
+
+### 6. 法律問答（ask_law_question）
+
+整合 retrieval + generation 的完整 RAG 問答。不只回傳條文，而是根據相關條文生成有引用來源的繁體中文回答。
+
+使用範例：
+> 「勞工特別休假有幾天？」
+> 「被資遣時雇主需要給多少預告期？」
+> 「房東可以隨意漲租金嗎？」
+
+> 需要先設定 `GENERATION_PROVIDER` 並確保對應服務正常運行（Ollama 或線上 API）。
 
 ---
 
