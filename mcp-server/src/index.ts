@@ -11,6 +11,7 @@ import { exactSearchTool, handleExactSearch } from "./tools/exact_search.js";
 import { lawSearchTool, handleLawSearch } from "./tools/law_search.js";
 import { getLawTool, handleGetLaw } from "./tools/get_law.js";
 import { compareTool, handleCompare } from "./tools/compare.js";
+import { askLawQuestionTool, handleAskLawQuestion } from "./tools/ask_question.js";
 
 // Initialize the API client connecting to the FastAPI RAG backend
 const client = new RAGClient();
@@ -35,6 +36,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       lawSearchTool,
       getLawTool,
       compareTool,
+      askLawQuestionTool,
     ],
   };
 });
@@ -58,6 +60,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return await handleGetLaw(args, client);
       case "compare_laws":
         return await handleCompare(args, client);
+      case "ask_law_question":
+        return handleAskLawQuestion(request.params.arguments, client);
       default:
         throw new Error(`Unknown tool: ${name}`);
     }

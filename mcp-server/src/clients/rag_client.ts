@@ -1,5 +1,16 @@
 import fetch from "node-fetch";
 
+export interface Citation {
+  law_name: string;
+  article_no: string;
+}
+
+export interface ChatResponse {
+  answer: string;
+  citations: Citation[];
+  query_time: number;
+}
+
 export class RAGClient {
   private baseUrl: string;
 
@@ -50,5 +61,17 @@ export class RAGClient {
 
   async compareLaws(law_names: string[], topic: string) {
     return this.request<any>("/law/compare", { law_names, topic });
+  }
+
+  async chat(question: string, top_k: number = 5): Promise<ChatResponse> {
+    const response = await fetch(`${this.baseUrl}/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, top_k }),
+    });
+    if (!response.ok) {
+      throw new Error(`Chat API error: ${response.status} ${response.statusText}`);
+    }
+    return response.json() as Promise<ChatResponse>;
   }
 }
