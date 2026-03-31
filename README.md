@@ -288,6 +288,56 @@ uv run python -m pytest python-rag/tests/ -v
 
 ---
 
+## 評估框架
+
+系統內建評估框架，可量化比較不同 retrieval 策略的效果。
+
+### 驗證資料集
+
+```bash
+uv run scripts/run_evaluation.py --dry-run
+```
+
+### 執行完整評估
+
+```bash
+# 使用 OpenAI embedding（需設定 API key）
+EMBEDDING_PROVIDER=openai OPENAI_API_KEY=sk-xxx uv run scripts/run_evaluation.py
+
+# 只跑特定策略
+uv run scripts/run_evaluation.py --strategy bm25 --k 5
+uv run scripts/run_evaluation.py --strategy hybrid --k 10
+
+# 所有策略，自訂輸出目錄
+uv run scripts/run_evaluation.py --output-dir data/eval/results
+```
+
+評估完成後，終端機會輸出各策略的 Recall@K、MRR、NDCG@K 比較表，完整 Markdown 報告存至 `data/eval/results/eval_YYYYMMDD_HHMMSS.md`。
+
+**建立 Golden Dataset：**
+
+`data/` 目錄不納入版本控制，需自行建立評估資料集。參考範例格式：
+
+```bash
+cp scripts/golden_dataset.example.json data/eval/golden_dataset.json
+# 接著編輯 golden_dataset.json，填入你的查詢與預期答案
+```
+
+每筆資料格式：
+
+```json
+{
+  "query": "勞工加班費應如何計算？",
+  "expected_law": "勞動基準法",
+  "expected_articles": ["第 24 條"],
+  "query_type": "semantic"
+}
+```
+
+`query_type` 可為 `"semantic"`（情境描述）或 `"exact"`（直接查詢條號）。
+
+---
+
 ## 實際範例演示
 
 以下為在 Kiro IDE 中使用 `compare_laws` 工具比較「投資商品」與「基金商品」定義的實際查詢過程：
