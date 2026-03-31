@@ -36,9 +36,7 @@ def _make_provider(
         api_key=api_key,
         batch_size=batch_size,
     )
-    with patch.object(LangChainEmbeddingProvider, "_init_openai", return_value=mock_embedder or MagicMock()), \
-         patch.object(LangChainEmbeddingProvider, "_init_cohere", return_value=mock_embedder or MagicMock()), \
-         patch.object(LangChainEmbeddingProvider, "_init_huggingface", return_value=mock_embedder or MagicMock()):
+    with patch.object(LangChainEmbeddingProvider, "_init_embedder", return_value=mock_embedder or MagicMock()):
         provider = LangChainEmbeddingProvider(config)
     if mock_embedder is not None:
         provider._lc_embedder = mock_embedder
@@ -102,7 +100,7 @@ class TestLangChainEmbeddingProviderBackends:
 
     def test_openai_backend_created_successfully(self):
         mock_lc = MagicMock()
-        with patch("providers.langchain_providers.LangChainEmbeddingProvider._init_openai", return_value=mock_lc):
+        with patch.object(LangChainEmbeddingProvider, "_init_embedder", return_value=mock_lc):
             config = ProviderConfig(provider_type="openai", api_key="sk-test", batch_size=10)
             provider = LangChainEmbeddingProvider(config)
         assert provider._lc_embedder is mock_lc
@@ -110,7 +108,7 @@ class TestLangChainEmbeddingProviderBackends:
 
     def test_cohere_backend_created_successfully(self):
         mock_lc = MagicMock()
-        with patch("providers.langchain_providers.LangChainEmbeddingProvider._init_cohere", return_value=mock_lc):
+        with patch.object(LangChainEmbeddingProvider, "_init_embedder", return_value=mock_lc):
             config = ProviderConfig(provider_type="cohere", api_key="co-test", batch_size=10)
             provider = LangChainEmbeddingProvider(config)
         assert provider._lc_embedder is mock_lc
@@ -118,7 +116,7 @@ class TestLangChainEmbeddingProviderBackends:
 
     def test_huggingface_backend_created_successfully(self):
         mock_lc = MagicMock()
-        with patch("providers.langchain_providers.LangChainEmbeddingProvider._init_huggingface", return_value=mock_lc):
+        with patch.object(LangChainEmbeddingProvider, "_init_embedder", return_value=mock_lc):
             config = ProviderConfig(provider_type="huggingface", batch_size=10)
             provider = LangChainEmbeddingProvider(config)
         assert provider._lc_embedder is mock_lc
@@ -131,26 +129,29 @@ class TestApiKeyMissing:
     def test_openai_missing_api_key_raises_config_error(self, monkeypatch):
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         config = ProviderConfig(provider_type="openai", api_key=None)
-        with pytest.raises(ProviderConfigError, match="OPENAI_API_KEY"):
+        # 新架構：key 由 factory._inject_api_key() 注入，provider 本身不驗證 key
+        # 若 langchain-openai 未安裝，拋出 ProviderConfigError（找不到模組）
+        # 若已安裝，LangChain 在呼叫 API 時才驗證 key
+        with pytest.raises(ProviderConfigError):
             LangChainEmbeddingProvider(config)
 
     def test_cohere_missing_api_key_raises_config_error(self, monkeypatch):
         monkeypatch.delenv("COHERE_API_KEY", raising=False)
         config = ProviderConfig(provider_type="cohere", api_key=None)
-        with pytest.raises(ProviderConfigError, match="COHERE_API_KEY"):
+        with pytest.raises(ProviderConfigError):
             LangChainEmbeddingProvider(config)
 
     def test_openai_env_var_accepted(self, monkeypatch):
         monkeypatch.setenv("OPENAI_API_KEY", "env-key")
         mock_lc = MagicMock()
-        with patch("providers.langchain_providers.LangChainEmbeddingProvider._init_openai", return_value=mock_lc):
+        with patch.object(LangChainEmbeddingProvider, "_init_embedder", return_value=mock_lc):
             config = ProviderConfig(provider_type="openai", api_key=None)
             provider = LangChainEmbeddingProvider(config)
         assert provider._lc_embedder is mock_lc
 
     def test_huggingface_no_api_key_required(self):
         mock_lc = MagicMock()
-        with patch("providers.langchain_providers.LangChainEmbeddingProvider._init_huggingface", return_value=mock_lc):
+        with patch.object(LangChainEmbeddingProvider, "_init_embedder", return_value=mock_lc):
             config = ProviderConfig(provider_type="huggingface")
             provider = LangChainEmbeddingProvider(config)
         assert provider._lc_embedder is mock_lc

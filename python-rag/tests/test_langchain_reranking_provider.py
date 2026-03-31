@@ -30,7 +30,7 @@ def _make_provider(
         model_name=model_name,
         api_key=api_key,
     )
-    with patch.object(LangChainRerankingProvider, "_init_cohere", return_value=mock_compressor or MagicMock()):
+    with patch.object(LangChainRerankingProvider, "_init_compressor", return_value=mock_compressor or MagicMock()):
         provider = LangChainRerankingProvider(config)
     if mock_compressor is not None:
         provider._compressor = mock_compressor
@@ -64,15 +64,15 @@ def test_fallback_sorted_by_rrf_score(rrf_scores: List[float], top_k: int):
 
     當 API 重試耗盡後，回傳的文件列表應按 rrf_score 欄位降序排列，且數量不超過 top_k。
     """
-    from tenacity import RetryError
+    from providers.config import ProviderAPIError
 
     docs = _make_docs(len(rrf_scores), rrf_scores)
 
     mock_compressor = MagicMock()
     provider = _make_provider(mock_compressor=mock_compressor)
 
-    # 直接讓 _rerank_with_retry 拋出 RetryError，跳過實際等待
-    with patch.object(provider, "_rerank_with_retry", side_effect=RetryError(None)):
+    # _rerank_with_retry 將 RetryError 轉換為 ProviderAPIError，rerank 捕捉後回退
+    with patch.object(provider, "_rerank_with_retry", side_effect=ProviderAPIError("retry exhausted")):
         result = provider.rerank("query", docs, top_k)
 
     # 數量不超過 top_k
@@ -131,13 +131,15 @@ class TestApiKeyMissing:
     def test_cohere_missing_api_key_raises_config_error(self, monkeypatch):
         monkeypatch.delenv("COHERE_API_KEY", raising=False)
         config = ProviderConfig(provider_type="cohere", api_key=None)
-        with pytest.raises(ProviderConfigError, match="COHERE_API_KEY"):
+        # 新架構：key 由 factory._inject_api_key() 注入，provider 本身不驗證 key
+        # 若 langchain-cohere 未安裝，拋出 ProviderConfigError（找不到模組）
+        with pytest.raises(ProviderConfigError):
             LangChainRerankingProvider(config)
 
     def test_cohere_env_var_accepted(self, monkeypatch):
         monkeypatch.setenv("COHERE_API_KEY", "env-key")
         mock_compressor = MagicMock()
-        with patch.object(LangChainRerankingProvider, "_init_cohere", return_value=mock_compressor):
+        with patch.object(LangChainRerankingProvider, "_init_compressor", return_value=mock_compressor):
             config = ProviderConfig(provider_type="cohere", api_key=None)
             provider = LangChainRerankingProvider(config)
         assert provider._compressor is mock_compressor
