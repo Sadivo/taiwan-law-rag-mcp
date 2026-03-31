@@ -1,0 +1,16 @@
+[
+  {
+    "query": "勞工加班費應如何計算？",
+    "expected_law": "勞動基準法",
+    "expected_articles": ["第 24 條"],
+    "query_type": "semantic",
+    "notes": "加班費計算規定"
+  },
+  {
+    "query": "勞基法第 38 條",
+    "expected_law": "勞動基準法",
+    "expected_articles": ["第 38 條"],
+    "query_type": "exact",
+    "notes": "直接查詢特別休假條文"
+  }
+]
