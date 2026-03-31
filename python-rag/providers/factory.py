@@ -29,6 +29,12 @@ _PROVIDER_ENV_KEY: dict[str, str | None] = {
     "bedrock":      None,  # 用 AWS credentials
 }
 
+_GENERATION_PROVIDER_ENV_KEY: dict[str, str | None] = {
+    "openai":    "OPENAI_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
+    "ollama":    None,
+}
+
 
 def _inject_api_key(provider_type: str, api_key: str | None) -> None:
     """將 api_key 寫入 LangChain 期望的標準環境變數，讓 provider 自動讀取。"""
@@ -95,6 +101,43 @@ class ProviderFactory:
             f"內建支援: local, cohere, voyageai, flashrank\n"
             f"或在 config.extra['langchain_class'] 指定任意 LangChain Reranker class。"
         )
+
+    @staticmethod
+    def create_generation_provider(config: ProviderConfig) -> "GenerationProvider":
+        from generation.langchain_provider import LangChainGenerationProvider
+        from generation.base import GenerationProvider
+
+        provider_type = config.provider_type
+        supported = ("ollama", "openai", "anthropic")
+
+        if provider_type not in supported and not config.extra.get("langchain_class"):
+            raise ProviderConfigError(
+                f"不支援的 generation provider_type: '{provider_type}'。\n"
+                f"內建支援: {', '.join(supported)}\n"
+                f"或透過 config.extra['langchain_class'] 指定任意 LangChain BaseChatModel class。"
+            )
+
+        return LangChainGenerationProvider(config)
+
+    @classmethod
+    def generation_from_env(cls) -> "GenerationProvider":
+        provider_type = os.environ.get("GENERATION_PROVIDER", "ollama")
+        api_key = os.environ.get("GENERATION_API_KEY")
+        model_name = os.environ.get("GENERATION_MODEL_NAME")
+        max_tokens_str = os.environ.get("GENERATION_MAX_TOKENS", "1024")
+
+        try:
+            max_tokens = int(max_tokens_str)
+        except ValueError:
+            max_tokens = 1024
+
+        config = ProviderConfig(
+            provider_type=provider_type,
+            model_name=model_name,
+            api_key=api_key,
+            extra={"max_tokens": max_tokens},
+        )
+        return cls.create_generation_provider(config)
 
     @classmethod
     def from_env(cls) -> Tuple[EmbeddingProvider, RerankingProvider]:

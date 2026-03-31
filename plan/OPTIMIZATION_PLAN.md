@@ -9,7 +9,7 @@
 | 優先級 | 項目 | 預估工時 | 亮點 | 狀態 |
 |---|---|---|---|---|
 | ⭐⭐⭐ | Phase 10：評估框架 | 4-6h | 量化技術決策，有數據說話 | ✅ 已完成 |
-| ⭐⭐⭐ | Phase 11：法律問答生成 | 4-6h | 完整 RAG loop，demo 效果強 | 待實作 |
+| ⭐⭐⭐ | Phase 11：法律問答生成 | 4-6h | 完整 RAG loop，demo 效果強 | ✅ 已完成 |
 | ⭐⭐ | Phase 12：查詢意圖理解 | 3-4h | 展示對 RAG 核心痛點的理解 | 待實作 |
 
 ---
@@ -43,7 +43,9 @@ EMBEDDING_PROVIDER=openai OPENAI_API_KEY=sk-xxx uv run scripts/run_evaluation.py
 
 ---
 
-## Phase 11：法律問答生成（RAG Generation）
+## Phase 11：法律問答生成（RAG Generation）✅ 已完成
+
+> 詳細實作記錄：[plan/log/phase11_rag_generation.md](log/phase11_rag_generation.md)
 
 ### 目標
 在現有 retrieval 基礎上加入 generation 層，讓系統從「搜尋工具」升級為「法律 AI 助理」。
@@ -93,23 +95,33 @@ EMBEDDING_PROVIDER=openai OPENAI_API_KEY=sk-xxx uv run scripts/run_evaluation.py
 python-rag/
 └── generation/
     ├── __init__.py
-    ├── base.py             # GenerationProvider 抽象介面
-    ├── ollama_provider.py  # 本地 Ollama
-    ├── openai_provider.py  # OpenAI
-    └── rag_chain.py        # 整合 retrieval + generation
+    ├── base.py                  # GenerationProvider ABC + GenerationProviderError
+    ├── langchain_provider.py    # LangChainGenerationProvider（統一支援 ollama/openai/anthropic）
+    └── rag_chain.py             # RAGChain（整合 retrieval + generation）
 
 python-rag/api/
-└── chat_routes.py          # /chat 與 /chat/stream 端點
+└── chat_routes.py               # POST /chat 與 POST /chat/stream 端點
+
+python-rag/tests/generation/
+├── test_base.py                 # Property 1（3 tests）
+├── test_langchain_provider.py   # Properties 2–4（3 tests）
+├── test_factory.py              # Property 5（1 test）
+├── test_rag_chain.py            # Properties 6–10（5 tests）
+└── test_chat_routes.py          # Properties 11–12（2 tests）
 
 mcp-server/src/tools/
-└── ask_question.ts         # ask_law_question MCP tool
+└── ask_question.ts              # ask_law_question MCP tool
+
+mcp-server/src/tests/
+└── ask_question.test.ts         # Property 13（fast-check，1 test）
 ```
 
 ### 驗收標準
-- `POST /chat` 能回傳包含引用條文的法律回答
-- `POST /chat/stream` 能串流輸出
-- MCP tool `ask_law_question` 在 Claude Desktop 中可正常使用
-- 回答中包含正確的條文引用
+- `POST /chat` 能回傳包含引用條文的法律回答 ✅
+- `POST /chat/stream` 能串流輸出 ✅
+- MCP tool `ask_law_question` 在 Claude Desktop 中可正常使用 ✅
+- 回答中包含正確的條文引用 ✅
+- 14 個 Python property tests + 2 個 TypeScript tests 全部通過 ✅
 
 ---
 

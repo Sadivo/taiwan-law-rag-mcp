@@ -78,3 +78,16 @@ class HealthResponse(BaseModel):
     status: str
     embedding_provider: str   # e.g. "local:Qwen3-Embedding-4B"
     reranking_provider: str   # e.g. "cohere:rerank-multilingual-v3.0"
+
+class Citation(BaseModel):
+    law_name: str
+    article_no: str
+
+class ChatRequest(BaseModel):
+    question: str = Field(..., min_length=1, description="法律問題")
+    top_k: int = Field(5, ge=1, le=50, description="retrieval 條文數量")
+
+class ChatResponse(BaseModel):
+    answer: str
+    citations: List[Citation]
+    query_time: float
