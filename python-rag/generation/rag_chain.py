@@ -6,10 +6,13 @@ from __future__ import annotations
 
 import time
 import logging
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Dict, Iterator, List, Optional, TYPE_CHECKING
 
 from api.models import ChatResponse, Citation
 from generation.base import GenerationProvider
+
+if TYPE_CHECKING:
+    from retrieval.query_understanding import QueryUnderstanding
 
 logger = logging.getLogger(__name__)
 
@@ -33,11 +36,13 @@ class RAGChain:
         generation_provider: GenerationProvider,
         top_k: int = 5,
         max_tokens: int = 1024,
+        query_understanding: Optional["QueryUnderstanding"] = None,
     ) -> None:
         self._retrieval_service = retrieval_service
         self._generation_provider = generation_provider
         self._top_k = top_k
         self._max_tokens = max_tokens
+        self._query_understanding = query_understanding
 
     def _build_context(self, articles: List[Dict[str, Any]]) -> str:
         """格式化條文為 context 字串：【{law_name} {article_no}】{content}"""
@@ -66,12 +71,34 @@ class RAGChain:
             for article in articles
         ]
 
-    def ask(self, question: str, top_k: Optional[int] = None) -> ChatResponse:
+    def ask(self, question: str, top_k: Optional[int] = None, session_id: Optional[str] = None) -> ChatResponse:
         """執行完整 RAG 問答流程，回傳 ChatResponse"""
         start_time = time.time()
         effective_top_k = top_k if top_k is not None else self._top_k
 
-        articles = self._retrieval_service.search_semantic(question, effective_top_k)
+        # Query Understanding（可選）
+        effective_query = question
+        intent = None
+        if self._query_understanding is not None:
+            try:
+                from retrieval.query_classifier import IntentType
+                rq = self._query_understanding.process(question, session_id)
+                effective_query = rq.expanded_query
+                intent = rq.intent
+            except Exception as exc:
+                logger.warning("QueryUnderstanding failed: %s", exc)
+
+        # 依 intent 選擇 retrieval 策略
+        try:
+            from retrieval.query_classifier import IntentType
+            if intent == IntentType.EXACT:
+                articles = self._retrieval_service.search_exact(effective_query)
+            elif intent == IntentType.COMPARISON:
+                articles = self._retrieval_service.search_semantic(effective_query, effective_top_k)
+            else:
+                articles = self._retrieval_service.search_semantic(effective_query, effective_top_k)
+        except ImportError:
+            articles = self._retrieval_service.search_semantic(effective_query, effective_top_k)
 
         if not articles:
             return ChatResponse(

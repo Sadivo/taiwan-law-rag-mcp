@@ -61,6 +61,27 @@ def get_rag_chain() -> RAGChain:
             top_k=top_k,
             max_tokens=max_tokens,
         )
+
+        # 依環境變數決定是否啟用 QueryUnderstanding
+        enable_qu = os.environ.get("ENABLE_QUERY_REWRITING", "false").lower() == "true"
+        if enable_qu:
+            try:
+                from retrieval.query_classifier import QueryClassifier
+                from retrieval.query_rewriter import LanguageDetector, QueryRewriter
+                from retrieval.context_manager import ContextManager
+                from retrieval.query_understanding import QueryUnderstanding
+
+                qu = QueryUnderstanding(
+                    classifier=QueryClassifier(),
+                    rewriter=QueryRewriter(generation_provider=generation_provider),
+                    context_manager=ContextManager(),
+                    language_detector=LanguageDetector(),
+                )
+                _rag_chain._query_understanding = qu
+                logger.info("QueryUnderstanding enabled (ENABLE_QUERY_REWRITING=true)")
+            except Exception as exc:
+                logger.warning("Failed to initialize QueryUnderstanding: %s", exc)
+
     return _rag_chain
 
 
