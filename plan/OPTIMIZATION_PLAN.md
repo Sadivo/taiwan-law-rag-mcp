@@ -185,3 +185,26 @@ Phase 11（問答生成）
 Phase 12（查詢意圖）
   → 用 Phase 10 的框架驗證改善效果
 ```
+
+---
+
+## Phase 13：UX 優化 ✅ 已完成
+
+> 詳細實作記錄：[plan/log/phase13_ux_optimization.md](log/phase13_ux_optimization.md)
+
+補齊文件、統一 CLI 入口、一鍵 setup、啟動健康摘要與 `/health` 擴充。
+
+---
+
+## 待評估項目（Phase 14 候選）
+
+以下為討論中的潛在改善方向，尚未排入計畫：
+
+| 優先級 | 項目 | 說明 |
+|---|---|---|
+| ⭐⭐⭐ | `serve --with-ollama` flag | `uv run main.py serve --with-ollama` 自動 spawn Ollama 背景 process 再啟動 FastAPI，解決需要手動分兩步啟動的問題 |
+| ⭐⭐⭐ | `update` 子命令 | `uv run main.py update` 一鍵下載最新法律資料並重建索引，目前需手動跑兩個腳本 |
+| ⭐⭐ | `mcp build` 子命令 | `uv run main.py mcp build` 包裝 `cd mcp-server && npm run build`，省去切目錄的步驟 |
+| ⭐⭐ | `status` 子命令 | `uv run main.py status` 打 `/health` 顯示已啟動服務的狀態，與 `check`（不啟動服務）互補 |
+| ⭐ | `logs` 子命令 | `uv run main.py logs` 即時 tail FastAPI log |
+| ⭐ | `test` 子命令 | `uv run main.py test` 包裝 pytest，統一入口 |
