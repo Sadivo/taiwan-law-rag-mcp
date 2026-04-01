@@ -91,3 +91,23 @@ class ChatResponse(BaseModel):
     answer: str
     citations: List[Citation]
     query_time: float
+
+
+# --- Session API models ---
+
+class SessionChatRequest(BaseModel):
+    question: str = Field(..., min_length=1, description="法律問題")
+    top_k: int = Field(5, ge=1, le=50, description="retrieval 條文數量")
+
+class CreateSessionResponse(BaseModel):
+    session_id: str
+
+class SessionChatResponse(BaseModel):
+    answer: str
+    citations: List[Citation]
+    query_time: float
+    session_id: str
+
+class DeleteSessionResponse(BaseModel):
+    deleted: bool
+    session_id: str
