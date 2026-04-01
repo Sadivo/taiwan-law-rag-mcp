@@ -14,3 +14,4 @@
 | [phase9_auto_download_and_diff.md](phase9_auto_download_and_diff.md) | Phase 9 | 自動下載法律資料與版本比對 |
 | [phase10_evaluation_pipeline.md](phase10_evaluation_pipeline.md) | Phase 10 | 評估框架（Golden Dataset、Recall@K、MRR、NDCG） |
 | [phase11_rag_generation.md](phase11_rag_generation.md) | Phase 11 | RAG Generation 層（GenerationProvider、RAGChain、Chat API、ask_law_question MCP Tool） |
+| [phase12_query_understanding.md](phase12_query_understanding.md) | Phase 12 | 查詢意圖理解（QueryClassifier 擴充、QueryRewriter、ContextManager、Session API） |
