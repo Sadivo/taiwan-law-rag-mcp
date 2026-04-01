@@ -74,10 +74,15 @@ class RebuildIndexResponse(BaseModel):
     chunks: int
     time: float
 
+class GenerationProviderInfo(BaseModel):
+    name: str
+    status: str  # "ok" | "unreachable"
+
 class HealthResponse(BaseModel):
-    status: str
-    embedding_provider: str   # e.g. "local:Qwen3-Embedding-4B"
-    reranking_provider: str   # e.g. "cohere:rerank-multilingual-v3.0"
+    status: str                          # "ok" | "degraded" | "error"
+    embedding_provider: str              # e.g. "local:Qwen3-Embedding-4B"
+    reranking_provider: str              # e.g. "local:Qwen3-Reranker-4B"
+    generation_provider: GenerationProviderInfo
 
 class Citation(BaseModel):
     law_name: str
